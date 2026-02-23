@@ -1,0 +1,225 @@
+CREATE database event_ticketing_system;
+USE event_ticketing_system;
+_____________________________________________________________________________________________________
+-- Create --
+
+CREATE TABLE event(
+event_id INT NOT NULL AUTO_INCREMENT,
+event_name VARCHAR (50),
+event_type VARCHAR (25),
+event_date DATE,
+PRIMARY KEY (event_id)
+);
+
+CREATE TABLE customer(
+customer_id INT NOT NULL,
+customer_name VARCHAR(50),
+customer_email VARCHAR(100),
+customer_contact VARCHAR(13),
+PRIMARY KEY (customer_id)
+);
+
+CREATE TABLE ticket(
+ticket_id INT NOT NULL,
+event_id INT NOT NULL,
+ticket_type VARCHAR(50),
+ticket_price DECIMAL(10,2),
+ticket_status VARCHAR(25),
+PRIMARY KEY (ticket_id),
+FOREIGN KEY (event_id) REFERENCES event(event_id)
+);
+
+CREATE TABLE payment(
+payment_id INT NOT NULL AUTO_INCREMENT,
+customer_id INT NOT NULL,
+payment_amount DECIMAL(10,2),
+payment_method VARCHAR(25),
+PRIMARY KEY (payment_id),
+FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+);
+
+CREATE TABLE booking(
+booking_id INT NOT NULL AUTO_INCREMENT,
+event_id INT NOT NULL,
+ticket_id INT NOT NULL,
+customer_id INT NOT NULL,
+booking_date DATE,
+booking_status VARCHAR(25),
+PRIMARY KEY (booking_id),
+FOREIGN KEY (event_id) REFERENCES event(event_id),
+FOREIGN KEY (ticket_id) REFERENCES ticket(ticket_id),
+FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+);
+_____________________________________________________________________________________________________
+-- Alter --
+ALTER TABLE event ADD COLUMN event_venue VARCHAR (25);
+
+_____________________________________________________________________________________________________
+-- Insert --
+
+INSERT INTO customer (customer_id, customer_name, customer_email, customer_contact) VALUES
+(25480, 'Kelvin Choi Jia Le', 'kelvin_choi@gmail.com', '019-378-6601'),
+(36594, 'Alibaba', 'ali88@gmail.com', '016-788-1080'),
+(10967, 'Kristina Leonardo', 'kris_leo@hotmail.com', '011-1093-2788'),
+(56094, 'Tan Gang Qin', 'piano@yahoo.my', '014-623-7899'),
+(78506, 'Hu Er Yu', 'eryuhu_02@gmail.com', '019-498-2077'),
+(90459, 'Xia Zie Ji', 'summer0713@gmail.com', '011-1083-9397'),
+(46078, 'Joy Fu Kai Xin', 'happyfu_0912@gmail.com', '012-365-2035');
+
+INSERT INTO event (event_name, event_type, event_date, event_venue) VALUES
+('Marathon', 'sports', '2024-01-05', 'Stadium Bukit Jalil'),
+('Concert', 'performance', '2024-02-15', 'Axiata Arena'),
+('Blood Donation', 'charity', '2024-03-29', 'National Stadium');
+
+INSERT INTO ticket (ticket_id, event_id, ticket_type, ticket_price, ticket_status) VALUES
+(1001, 0001, 'VIP', 100, 'available'),
+(1002, 0001, 'general admission', 50, 'sold out'),
+(1003, 0002, 'VVIP', 2888, 'available'),
+(1004, 0002, 'VIP', 1888, 'available'),
+(1005, 0002, 'grandstand ticket', 388, 'sold out'),
+(1006, 0003, 'voucher', 100, 'available'),
+(1007, 0003, 'gifts', 300, 'available');
+
+INSERT INTO payment (customer_id, payment_amount, payment_method) VALUES
+(25480, 100, 'TNG eWallet'),
+(36594, 100, 'credit card'),
+(36594, 388, 'credit card'),
+(10967, 300, 'TNG eWallet'),
+(56094, 2888, 'credit card'),
+(78506, 2888, 'credit card'),
+(90459, 100, 'TNG eWallet'),
+(90459, 388, 'TNG eWallet'),
+(46078, 1888, 'credit card');
+
+INSERT INTO booking (event_id, ticket_id, customer_id, booking_date, booking_status) VALUES
+(1, 1001, 25480, '2024-01-10', 'confirmed'),
+(1, 1002, 36594, '2024-01-11', 'confirmed'),
+(2, 1005, 36594, '2024-01-11', 'confirmed'),
+(3, 1007, 10967, '2024-03-12', 'pending'),
+(2, 1003, 56094, '2024-02-14', 'cancelled'),
+(2, 1003, 78506, '2024-02-05', 'confirmed'),
+(3, 1006, 90459, '2024-03-19', 'pending'),
+(2, 1005, 90459, '2024-02-15', 'cancelled'),
+(2, 1004, 46078, '2024-01-19', 'confirmed');
+_____________________________________________________________________________________________________
+-- Select --
+
+select * from customer;
+
+select * from event;
+
+select * from ticket;
+
+select * from payment;
+
+select * from booking;
+_____________________________________________________________________________________________________
+-- Update --
+
+select * from event;
+
+UPDATE event
+SET event_venue = 'Dataran Merdeka'
+WHERE event_id = '1';
+
+select * from event;
+_____________________________________________________________________________________________________
+-- Delete --
+
+DELETE FROM payment
+WHERE payment_id = 5;
+
+select * from payment;
+_____________________________________________________________________________________________________
+-- Nested Query-- 
+Display the available ticket where ticket id = 2
+
+SELECT * 
+FROM ticket 
+WHERE ticket_status = 'available' 
+AND event_id = (
+SELECT event_id
+FROM ticket
+WHERE event_id = 2 
+LIMIT 1
+);
+
+_____________________________________________________________________________________________________
+-- Aggregate Function & Grouping--
+
+SELECT payment_method, COUNT(payment_method) AS payment_count
+FROM payment
+GROUP BY payment_method;
+
+_____________________________________________________________________________________________________
+-- Join --
+
+SELECT customer.customer_id, customer.customer_name, customer.customer_contact, event.event_name, event.event_date, booking.booking_status
+FROM customer, event, booking
+WHERE customer.customer_id = booking.customer_id AND event.event_id = booking.event_id
+GROUP BY customer.customer_id;
+
+_____________________________________________________________________________________________________
+-- Procedure --
+
+DELIMITER $$
+
+CREATE PROCEDURE ticket_sold_report()
+BEGIN
+SELECT event.event_id, event.event_name, ticket.ticket_type, COUNT(booking.booking_id) AS 'ticket_sold', SUM(ticket.ticket_price) AS 'total_revenue'
+FROM event
+JOIN ticket ON event.event_id = ticket.event_id
+JOIN booking ON ticket.ticket_id = booking.ticket_id
+WHERE booking.booking_status = 'confirmed'
+GROUP BY event.event_id, event.event_name, ticket.ticket_type;
+END$$
+
+DELIMITER ;
+
+call ticket_sold_report();
+_____________________________________________________________________________________________________
+-- Trigger --
+
+DELIMITER $$
+
+CREATE TRIGGER default_status
+BEFORE INSERT ON booking
+FOR EACH ROW
+BEGIN
+IF NEW.booking_status IS NULL THEN
+SET NEW.booking_status = 'pending';
+END IF;
+END$$
+
+DELIMITER ;
+
+INSERT INTO booking (event_id, ticket_id, customer_id, booking_date, booking_status) VALUES
+(1, 1001, 25480, '2024-01-15', NULL);
+
+INSERT INTO booking (event_id, ticket_id, customer_id, booking_date, booking_status) VALUES
+(2, 1002, 36594, '2024-01-16', 'confirmed');
+_____________________________________________________________________________________________________
+-- Stored Function --
+Calculate the average ticket price of an event
+
+DELIMITER $$
+
+CREATE FUNCTION average_ticket_price(p_event_id INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE avg_price DECIMAL(10,2);
+    SELECT AVG(ticket_price) INTO avg_price
+    FROM ticket
+    WHERE event_id = p_event_id;
+    RETURN avg_price;
+END$$
+
+DELIMITER ;
+
+SELECT average_ticket_price(2);
+_____________________________________________________________________________________________________
+-- Export --
+
+exit
+mysqldump -u root -p event_ticketing_system > event_ticketing_system.sql
